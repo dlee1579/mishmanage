@@ -7,13 +7,12 @@ import './App.css'
 // treatment_types include 1. quick treat 2. multi drug 3. single drug 4. DTU
 // color of treatment on nurse schedules are different based on treatment_types
 
-const treatmentTypeColorMap = {
-  "QT": "#C9DF8A",
-  "SD": "#D2B4DE",
-  "MD": "#FFC0CB",
-  "DTU": "#7AC2E0",
+const treatmentTypeColorMap : {[key: string]: string} = {
+  QT: "#C9DF8A",
+  SD: "#D2B4DE",
+  MD: "#FFC0CB",
+  DTU: "#7AC2E0",
 }
-
 
 interface Treatment {
   id: number,
@@ -47,34 +46,33 @@ function App() {
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const patient_name = event.target.elements.namedItem("patient_name").value;
-    const arrived_at = event.target.elements.namedItem("arrived_at").value;
-    const treatment_type = event.target.elements.namedItem("treatment_type").value
-    const complete_by = event.target.elements.namedItem("complete_by").value
+    
+    const formData = new FormData(event.target as HTMLFormElement);
+    const submittedTreatment = Object.fromEntries(formData);
 
-    if (!patient_name) {
+    if (!submittedTreatment.patient_name) {
       alert("Please enter a valid patient name.");
       return;
     }
-    else if (!arrived_at) {
+    else if (!submittedTreatment.arrived_at) {
       alert("Please enter a valid arrival time.");
       return;
     }
-    else if (!treatment_type) {
+    else if (!submittedTreatment.treatment_type) {
       alert("Please enter a valid treatment_type level.");
       return;
     }
-    else if (!complete_by) {
+    else if (!submittedTreatment.complete_by) {
       alert("Please enter a valid estimated completion time.");
       return;
     }
 
     const treatment = {
       "id": idTracker,
-      "patient_name": patient_name,
-      "arrived_at": arrived_at,
-      "treatment_type": treatment_type,
-      "complete_by": complete_by,
+      "patient_name": submittedTreatment.patient_name as string,
+      "arrived_at": submittedTreatment.arrived_at as string,
+      "treatment_type": submittedTreatment.treatment_type as string,
+      "complete_by": submittedTreatment.complete_by as string,
       "is_taken": false,
     };
     setTreatments([...treatments, treatment]);
@@ -87,7 +85,6 @@ function App() {
   }
 
   function handleDragStart(event: React.DragEvent) {
-    // console.log(event);
     event.dataTransfer.setData("text", (event.target as HTMLElement).id)
   }
 
@@ -124,42 +121,32 @@ function App() {
     return 100*(timeStringToNumber(complete_by)-timeStringToNumber(arrived_at))/maxHeight
   }
 
-  function removeFromSchedule(treatmentId: number, nurseScheduleId: number) {
-    const copyNurseSchedules = [...nurseSchedules]
-    const targetSchedule: NurseSchedule = copyNurseSchedules.find(schedule => schedule.id === nurseScheduleId)!;
-    // const targetTreatment = targetSchedule.treatments.find(treatment => treatment.id === treatmentId)
-    // debugger;
-    targetSchedule.treatments = targetSchedule.treatments.filter(treatment => treatment.id !== treatmentId);
-    setNurseSchedules(copyNurseSchedules);
-
-    const copyTreatments = [...treatments]
-    const targetTreatment = copyTreatments.find(treatment => treatment.id === treatmentId);
-    targetTreatment!.is_taken = false;
-  }
-
-  function treatmentHasOverlap(treatmentId: number, nurseScheduleId: number) {
-    const nurseSchedule = nurseSchedules.find(schedule => schedule.id === nurseScheduleId)!;
-    const targetTreatment = nurseSchedule.treatments.find(treatment => treatment.id === treatmentId)!;
-    const targetStartTime = timeStringToNumber(targetTreatment['arrived_at']);
-    const targetEndTime = timeStringToNumber(targetTreatment['complete_by']);
-    for (const treatment in nurseSchedule.treatments.filter(treatment => treatment.id !== treatmentId)) {
-      const startTime = timeStringToNumber(treatment["arrived_at"])
-      const endTime = timeStringToNumber(treatment["complete_by"])
-      if ((targetStartTime <= startTime && targetEndTime >= endTime) || (targetStartTime <= startTime && targetEndTime <= endTime) || (targetStartTime >= startTime && targetEndTime >= endTime) || (targetStartTime >= startTime && targetEndTime <= endTime)) {
-        return true;
-      }
-    }
-    return false;
-
-  }
-
-  // function handleClick(event: React.MouseEvent) {
-  //   console.log(event);
-  //   const treatmentId = parseInt(event.target.getAttribute('treatmentid'));
-  //   const nurseScheduleId = parseInt(event.target.getAttribute('nursescheduleid'));
+  // function removeFromSchedule(treatmentId: number, nurseScheduleId: number) {
+  //   const copyNurseSchedules = [...nurseSchedules]
+  //   const targetSchedule: NurseSchedule = copyNurseSchedules.find(schedule => schedule.id === nurseScheduleId)!;
+  //   // const targetTreatment = targetSchedule.treatments.find(treatment => treatment.id === treatmentId)
   //   // debugger;
-  //   removeFromSchedule(treatmentId, nurseScheduleId);
+  //   targetSchedule.treatments = targetSchedule.treatments.filter(treatment => treatment.id !== treatmentId);
+  //   setNurseSchedules(copyNurseSchedules);
 
+  //   const copyTreatments = [...treatments]
+  //   const targetTreatment = copyTreatments.find(treatment => treatment.id === treatmentId);
+  //   targetTreatment!.is_taken = false;
+  // }
+
+  // function treatmentHasOverlap(treatmentId: number, nurseScheduleId: number) {
+  //   const nurseSchedule = nurseSchedules.find(schedule => schedule.id === nurseScheduleId)!;
+  //   const targetTreatment = nurseSchedule.treatments.find(treatment => treatment.id === treatmentId)!;
+  //   const targetStartTime = timeStringToNumber(targetTreatment['arrived_at']);
+  //   const targetEndTime = timeStringToNumber(targetTreatment['complete_by']);
+  //   for (const treatment in nurseSchedule.treatments.filter(treatment => treatment.id !== treatmentId)) {
+  //     const startTime = timeStringToNumber(treatment["arrived_at"])
+  //     const endTime = timeStringToNumber(treatment["complete_by"])
+  //     if ((targetStartTime <= startTime && targetEndTime >= endTime) || (targetStartTime <= startTime && targetEndTime <= endTime) || (targetStartTime >= startTime && targetEndTime >= endTime) || (targetStartTime >= startTime && targetEndTime <= endTime)) {
+  //       return true;
+  //     }
+  //   }
+  //   return false;
   // }
 
   function removeFromTreatments(treatmentId: number) {
@@ -180,7 +167,7 @@ function App() {
           <h2 className="text-xl font-bold">Treatments</h2>
           <div className="space-y-4 flex flex-col">
             {treatments.filter((treatment) => !treatment.is_taken).map((treatment) => (
-              <div className='bg-emerald-500 rounded-lg p-3 text-left' draggable="true" onDragStart={handleDragStart} key={treatment["id"]} id={String(treatment["id"])} style={{backgroundColor: treatmentTypeColorMap[treatment["treatment_type"]]}}>
+              <div className='bg-emerald-500 rounded-lg p-3 text-left' draggable="true" onDragStart={handleDragStart} key={treatment["id"]} id={String(treatment["id"])} style={{backgroundColor: treatmentTypeColorMap[treatment.treatment_type]}}>
                 <button onClick={handleClick} className='float-right' treatment-id ={treatment["id"]} style={{backgroundColor: treatmentTypeColorMap[treatment["treatment_type"]]}}>x</button>
                 <div className="p-1">Patient: {treatment["patient_name"]}</div>
                 <div className="p-1">Arrived At:{treatment["arrived_at"]}</div>
