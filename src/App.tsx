@@ -21,6 +21,10 @@ interface Treatment {
   treatment_type: string,
   complete_by: string,
   assigned_to: number | null,
+  x: number | null,
+  y: number | null,
+  height: number | null,
+  width: number | null,
 }
 
 interface NurseSchedule {
@@ -32,9 +36,6 @@ interface NurseSchedule {
 function App() {
   const [treatments, setTreatments] = useState<Array<Treatment>>([]);
   const [idTracker, setIdTracker] = useState(0);
-  // const [nurseSchedules, setNurseSchedules] = useState<Array<NurseSchedule>>(["A", "B", "C", "D", "E", "F"].map((nurse, index) => (
-  //   {id: index, name: nurse, treatments: []}
-  // )));
   const nurseSchedules: Array<NurseSchedule> = ["A", "B", "C", "D", "E", "F"].map((nurse, index) => (
     {id: index, name: nurse, treatments: []}
   ))
@@ -74,13 +75,17 @@ function App() {
       return;
     }
 
-    const treatment = {
-      "id": idTracker,
-      "patient_name": submittedTreatment.patient_name as string,
-      "arrived_at": submittedTreatment.arrived_at as string,
-      "treatment_type": submittedTreatment.treatment_type as string,
-      "complete_by": submittedTreatment.complete_by as string,
-      "assigned_to": null,
+    const treatment: Treatment = {
+      id: idTracker,
+      patient_name: submittedTreatment.patient_name as string,
+      arrived_at: submittedTreatment.arrived_at as string,
+      treatment_type : submittedTreatment.treatment_type as string,
+      complete_by: submittedTreatment.complete_by as string,
+      assigned_to: null,
+      x: 0,
+      y: calculatePlacement(submittedTreatment.arrived_at as string),
+      height: calculateHeight(submittedTreatment.arrived_at as string, submittedTreatment.complete_by as string),
+      width: 100,
     };
     setTreatments([...treatments, treatment]);
     setIdTracker(idTracker + 1);
@@ -101,16 +106,36 @@ function App() {
     const selectedTreatmentId = parseInt(event.dataTransfer.getData("text"));
     const targetNurseId = parseInt((event.target as HTMLElement).id);
 
+    const overlappedTreatmentIds = getTreatmentsWithOverlap(selectedTreatmentId, targetNurseId);
+    console.log(overlappedTreatmentIds)
+    let counter = -1;
+
     const copyTreatments = treatments.map((treatment) => {
       if (!isNaN(targetNurseId) && treatment.id === selectedTreatmentId) {
-        return { ...treatment, assigned_to: targetNurseId};
+        counter = counter + 1;
+        return { ...treatment, assigned_to: targetNurseId, width: 100/(overlappedTreatmentIds.length + 1), x: counter*100/(overlappedTreatmentIds.length+1)};
+      } else if (overlappedTreatmentIds.includes(treatment.id)){
+        counter = counter + 1;
+        return { ...treatment, width: 100/(overlappedTreatmentIds.length + 1), x: counter*100/(overlappedTreatmentIds.length+1) }
       } else {
         return treatment;
       }
     });
     setTreatments(copyTreatments);
-    console.log(copyTreatments);
+    // console.log(copyTreatments);
   }
+
+  function getTreatmentsWithOverlap(treatmentId: number, nurseId: number|null) {
+    // with an input treatmentId, return all other treatment ids with overlap with the input id
+    const targetTreatment = treatments.find(treatment => treatment.id === treatmentId)!;
+    return treatments.filter(treatment => (
+      treatment.id !== treatmentId &&
+      nurseId && treatment.assigned_to === nurseId &&
+      ((timeStringToNumber(targetTreatment.arrived_at as string) > timeStringToNumber(treatment.arrived_at as string) && timeStringToNumber(targetTreatment.arrived_at as string) < timeStringToNumber(treatment.complete_by as string)) ||
+      (timeStringToNumber(targetTreatment.complete_by as string) > timeStringToNumber(treatment.arrived_at as string) && timeStringToNumber(targetTreatment.complete_by as string) < timeStringToNumber(treatment.complete_by as string)))
+    )).map(treatment => treatment.id);
+  }
+
   function handleDragOver(event: React.DragEvent) {
     event.preventDefault();
   }
@@ -119,15 +144,15 @@ function App() {
     // calendar shows 8AM to 8PM for a total of 12 hours
     // if 8AM, then 0px from the top
     // if 8PM, then 999px (entire height of calendar) from the top
-    const startBoundary = timeStringToNumber("08:00");
-    const endBoundary = timeStringToNumber("20:00");
+    const startBoundary = timeStringToNumber("07:00");
+    const endBoundary = timeStringToNumber("21:00");
     return Math.round(((timeStringToNumber(arrived_at) - startBoundary)/(endBoundary-startBoundary))*calendarHeight)
   }
 
   function calculateHeight(arrived_at: string, complete_by: string) {
     // returns a PERCENTAGE
-    // if an event is from 8am-8pm, it takes up 100% height of the div
-    const maxHeight = timeStringToNumber("12:00");
+    // if an event is from 7am-9pm, it takes up 100% height of the div
+    const maxHeight = timeStringToNumber("14:00");
     return 100*(timeStringToNumber(complete_by)-timeStringToNumber(arrived_at))/maxHeight
   }
 
@@ -140,17 +165,22 @@ function App() {
   }
 
   function handleRemoveTreatmentFromSchedule(event: React.MouseEvent) {
-    const targetTreatmentId = parseInt((event.target as HTMLElement).id)
+    const targetTreatmentId = parseInt((event.target as HTMLElement).id);
+    const targetTreatment = treatments.find(treatment => treatment.id == targetTreatmentId)!;
+    const overlappedTreatmentIds = getTreatmentsWithOverlap(targetTreatmentId, targetTreatment.assigned_to);
+    let counter = -1;
     const copyTreatments = treatments.map(treatment => {
       if (treatment.id === targetTreatmentId) {
-        return {...treatment, assigned_to: null};
+        return {...treatment, assigned_to: null, x: 0, width: 100};
+      } else if (overlappedTreatmentIds.includes(treatment.id)) {
+        counter = counter + 1;
+        return {...treatment, x: 100*counter/overlappedTreatmentIds.length, width: 100/overlappedTreatmentIds.length}
       } else {
         return treatment;
       }
     })
     setTreatments(copyTreatments);
   }
-
 
   return (
     <>
@@ -201,7 +231,7 @@ function App() {
             {nurseSchedules.map((nurseSchedule) =>  (
               <div key={nurseSchedule.id} className="rounded-lg h-screen w-32 font-bold static" onDragOver={handleDragOver} onDrop={handleDrop} style={{ backgroundColor: "#F9E79F"}}>
                 <div>{nurseSchedule.name}</div>
-                <div id={String(nurseSchedule.id)} className="h-screen" ref={ref}>{treatments.filter((treatment => treatment.assigned_to === nurseSchedule.id)).map((treatment) => (
+                <div id={String(nurseSchedule.id)} className="h-screen" ref={ref} style={{position: "relative"}}>{treatments.filter((treatment => treatment.assigned_to === nurseSchedule.id)).map((treatment) => (
                   <div
                     id={String(treatment.id)}
                     key={treatment.id}
@@ -210,9 +240,11 @@ function App() {
                       fontSize:"10px",
                       fontWeight: "bold",
                       backgroundColor: treatmentTypeColorMap[treatment.treatment_type],
-                      position: "relative",
-                      top: `${calculatePlacement(treatment.arrived_at)}px`,
-                      height:`${calculateHeight(treatment.arrived_at, treatment.complete_by)}%`,
+                      position: "absolute",
+                      top: `${treatment.y}px`,
+                      left: `${treatment.x}%`,
+                      height:`${treatment.height}%`,
+                      width: `${treatment.width}%`,
                     }}
                     onDragStart={handleDragStart}
                     draggable="true"
